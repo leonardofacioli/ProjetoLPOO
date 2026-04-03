@@ -1,6 +1,7 @@
 package entities;
 
 import interfaces.Pontuavel;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,5 +22,10 @@ public class Participante extends Usuario implements Pontuavel {
         int total = 0;
         for (Aposta a : apostas) total += a.calcularPontuacao();
         return total;
+    }
+
+    @Override
+    public String toString() {
+        return this.nome;
     }
 }

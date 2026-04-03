@@ -4,28 +4,38 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Campeonato {
-	  private String nome;
-	    private List<Clube> clubes;
-	    private List<Partida> partidas;
+    private String nome;
+    private List<Clube> clubes;
+    private List<Partida> partidas;
 
-	    public Campeonato(String nome) {
-	        this.nome = nome;
-	        this.clubes = new ArrayList<>();
-	        this.partidas = new ArrayList<>();
-	    }
-	    
-	    public String getNome() {
-	    	return nome;
-	    }
+    public Campeonato(String nome) {
+        this.nome = nome;
+        this.clubes = new ArrayList<>();
+        this.partidas = new ArrayList<>();
+    }
 
-	    public void adicionarClube(Clube clube) {
-	        if (clubes.size() < 8) clubes.add(clube);
-	    }
+    public String getNome() {
+        return nome;
+    }
 
-	    public void adicionarPartida(Partida partida) {
-	        partidas.add(partida);
-	    }
+    public void adicionarClube(Clube clube) {
+        if (clubes.size() < 8) clubes.add(clube);
+    }
 
-	    public List<Partida> getPartidas() { return partidas; }
-	    public List<Clube> getClubes() { return clubes; }
+    public void adicionarPartida(Partida partida) {
+        partidas.add(partida);
+    }
+
+    public List<Partida> getPartidas() {
+        return partidas;
+    }
+
+    public List<Clube> getClubes() {
+        return clubes;
+    }
+
+	@Override
+	public String toString() {
+		return this.nome;
+	}
 }
