@@ -50,6 +50,10 @@ public class Partida {
         return golsB;
     }
 
+    public boolean isResultadoRegistrado() {
+        return golsA != null;
+    }
+
     public String resultado() {
         if (golsA == null || golsB == null) return "Não definido";
         if (golsA > golsB) return timeA.getNome();
