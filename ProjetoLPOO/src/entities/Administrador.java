@@ -6,6 +6,11 @@ public class Administrador extends Usuario {
         super(nome);
     }
 
+    @Override
+    public String obterPapel() {
+        return "Administrador do Sistema";
+    }
+
     public void registrarResultado(Partida partida, int golsA, int golsB) {
         partida.registrarResultado(golsA, golsB);
     }

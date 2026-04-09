@@ -12,6 +12,13 @@ public class Grupo {
         this.participantes = new ArrayList<>();
     }
 
+    // Construtor Sobrecarregado
+    public Grupo(String nome, Participante p) {
+        this.nome = nome;
+        this.participantes = new ArrayList<>();
+        this.participantes.add(p);
+    }
+
     public void adicionarParticipante(Participante p) {
         if (participantes.size() < 5) participantes.add(p);
     }

@@ -2,11 +2,13 @@ package entities;
 
 
 public abstract class Usuario {
-    protected String nome;
+    private String nome;
 
     public Usuario(String nome) {
         this.nome = nome;
     }
+
+    public abstract String obterPapel();
 
     public String getNome() {
         return nome;
@@ -14,6 +16,6 @@ public abstract class Usuario {
 
     @Override
     public String toString() {
-        return this.nome;
+        return this.getNome();
     }
 }    

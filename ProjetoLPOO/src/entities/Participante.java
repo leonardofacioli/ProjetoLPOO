@@ -17,6 +17,17 @@ public class Participante extends Usuario implements Pontuavel {
         apostas.add(aposta);
     }
 
+    // Polimorfismo: Sobrecarga (Overloading)
+    public void apostar(Partida partida, int golsA, int golsB) {
+        apostas.add(new Aposta(partida, golsA, golsB));
+    }
+
+    // Polimorfismo: Sobreposição (Override) do método de negócio abstrato
+    @Override
+    public String obterPapel() {
+        return "Apostador (Participante)";
+    }
+
     @Override
     public int calcularPontuacao() {
         int total = 0;
@@ -26,6 +37,6 @@ public class Participante extends Usuario implements Pontuavel {
 
     @Override
     public String toString() {
-        return this.nome;
+        return this.getNome();
     }
 }
