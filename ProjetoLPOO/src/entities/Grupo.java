@@ -12,7 +12,6 @@ public class Grupo {
         this.participantes = new ArrayList<>();
     }
 
-    // Construtor Sobrecarregado
     public Grupo(String nome, Participante p) {
         this.nome = nome;
         this.participantes = new ArrayList<>();

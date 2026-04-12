@@ -8,8 +8,6 @@ public abstract class Usuario {
         this.nome = nome;
     }
 
-    public abstract String obterPapel();
-
     public String getNome() {
         return nome;
     }

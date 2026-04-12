@@ -30,12 +30,10 @@ public class Partida {
     }
 
 	public boolean podeApostar() {
-		// Regra: Antes de 20 min do início E se o resultado ainda não foi lançado
 		return LocalDateTime.now().isBefore(dataHora.minusMinutes(20)) && golsA == null;
 	}
 
 	public void registrarResultado(int golsA, int golsB) {
-		// Trava: Só permite o registro se os gols ainda forem nulos
 		if (this.golsA == null) {
 			this.golsA = golsA;
 			this.golsB = golsB;
