@@ -1,17 +1,38 @@
 package entities;
 
+import jakarta.persistence.*;
+
 import java.util.ArrayList;
 import java.util.List;
 
+@Entity
 public class Campeonato {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "nome", length = 100, nullable = false)
     private String nome;
-    private List<Clube> clubes;
-    private List<Partida> partidas;
+
+    @ManyToMany
+    @JoinTable(name = "campeonato_clube",
+               joinColumns = @JoinColumn(name = "campeonato_id"),
+               inverseJoinColumns = @JoinColumn(name = "clube_id"))
+    private List<Clube> clubes = new ArrayList<>();
+
+    @OneToMany
+    @JoinColumn(name = "campeonato_id")
+    private List<Partida> partidas = new ArrayList<>();
+
+    public Campeonato() {
+    }
 
     public Campeonato(String nome) {
         this.nome = nome;
-        this.clubes = new ArrayList<>();
-        this.partidas = new ArrayList<>();
+    }
+
+    public Long getId() {
+        return id;
     }
 
     public String getNome() {
@@ -34,8 +55,8 @@ public class Campeonato {
         return clubes;
     }
 
-	@Override
-	public String toString() {
-		return this.nome;
-	}
+    @Override
+    public String toString() {
+        return this.nome;
+    }
 }

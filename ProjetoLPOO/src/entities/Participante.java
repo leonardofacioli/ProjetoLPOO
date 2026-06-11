@@ -1,19 +1,31 @@
 package entities;
 
 import interfaces.Pontuavel;
+import jakarta.persistence.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@Entity
+@DiscriminatorValue("Participante")
 public class Participante extends Usuario implements Pontuavel {
-    private List<Aposta> apostas;
+    @OneToMany(mappedBy = "participante", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Aposta> apostas = new ArrayList<>();
+
+    public Participante() {
+        super();
+    }
 
     public Participante(String nome) {
         super(nome);
-        apostas = new ArrayList<>();
+    }
+
+    public List<Aposta> getApostas() {
+        return apostas;
     }
 
     public void apostar(Aposta aposta) {
+        aposta.setParticipante(this);
         apostas.add(aposta);
     }
 

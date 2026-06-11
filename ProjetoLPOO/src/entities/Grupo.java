@@ -1,21 +1,39 @@
 package entities;
 
+import jakarta.persistence.*;
+
 import java.util.ArrayList;
 import java.util.List;
 
+@Entity
 public class Grupo {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "nome", length = 100, nullable = false)
     private String nome;
-    private List<Participante> participantes;
+
+    @ManyToMany
+    @JoinTable(name = "grupo_participante",
+               joinColumns = @JoinColumn(name = "grupo_id"),
+               inverseJoinColumns = @JoinColumn(name = "participante_id"))
+    private List<Participante> participantes = new ArrayList<>();
+
+    public Grupo() {
+    }
 
     public Grupo(String nome) {
         this.nome = nome;
-        this.participantes = new ArrayList<>();
     }
 
     public Grupo(String nome, Participante p) {
         this.nome = nome;
-        this.participantes = new ArrayList<>();
         this.participantes.add(p);
+    }
+
+    public Long getId() {
+        return id;
     }
 
     public void adicionarParticipante(Participante p) {

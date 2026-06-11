@@ -4,19 +4,26 @@ import javax.swing.*;
 import java.awt.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
+
+import dao.JPAUtil;
 import entities.*;
+import service.*;
 
 public class SistemaCompleto extends JFrame {
-    private List<Clube> todosClubes = new ArrayList<>();
-    private List<Campeonato> campeonatos = new ArrayList<>();
-    private List<Grupo> grupos = new ArrayList<>();
-    private Administrador admin = new Administrador("Admin Central");
 
-    private DefaultListModel<String> modelClubes = new DefaultListModel<>();
-    private DefaultListModel<String> modelCampeonatos = new DefaultListModel<>();
-    private JTextArea areaRanking = new JTextArea(10, 30);
+    private final ClubeService clubeService = new ClubeService();
+    private final CampeonatoService campeonatoService = new CampeonatoService();
+    private final PartidaService partidaService = new PartidaService();
+    private final GrupoService grupoService = new GrupoService();
+    private final ApostaService apostaService = new ApostaService();
+    private final UsuarioService usuarioService = new UsuarioService();
+
+    private final Administrador admin;
+
+    private final DefaultListModel<String> modelClubes = new DefaultListModel<>();
+    private final DefaultListModel<String> modelCampeonatos = new DefaultListModel<>();
+    private final JTextArea areaRanking = new JTextArea(10, 30);
 
     public SistemaCompleto() {
         setTitle("Sistema de Apostas Esportivas");
@@ -24,21 +31,27 @@ public class SistemaCompleto extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        cadastrarClubesIniciais();
+        // Carrega/cria os dados persistidos no H2
+        clubeService.inicializarClubesPadrao();
+        admin = usuarioService.obterAdministrador("Admin Central");
+        carregarDadosDoBanco();
 
         JTabbedPane abas = new JTabbedPane();
         abas.addTab("Administração", criarPainelAdmin());
         abas.addTab("Grupos e Apostas", criarPainelParticipante());
 
         add(abas);
+        atualizarRankingInterface();
     }
 
-    private void cadastrarClubesIniciais() {
-        String[] nomes = {"Corinthians", "Palmeiras", "São Paulo", "Santos", "Flamengo", "Grêmio", "Internacional", "Atlético-MG"};
-        for (String n : nomes) {
-            Clube c = new Clube(n);
-            todosClubes.add(c);
-            modelClubes.addElement(n);
+    private void carregarDadosDoBanco() {
+        modelClubes.clear();
+        for (Clube c : clubeService.listarTodos()) {
+            modelClubes.addElement(c.getNome());
+        }
+        modelCampeonatos.clear();
+        for (Campeonato c : campeonatoService.listarTodos()) {
+            modelCampeonatos.addElement(c.getNome());
         }
     }
 
@@ -77,7 +90,6 @@ public class SistemaCompleto extends JFrame {
 
         painel.add(p1); painel.add(p2); painel.add(p3);
 
-        // Listeners (mantêm a mesma lógica anterior)
         btnPartida.addActionListener(e -> registrarPartida());
         btnResult.addActionListener(e -> lancarResultado());
         btnNovoCamp.addActionListener(e -> criarCampeonato());
@@ -101,26 +113,32 @@ public class SistemaCompleto extends JFrame {
         painel.add(pBotoes, BorderLayout.NORTH);
         painel.add(new JScrollPane(areaRanking), BorderLayout.CENTER);
 
-        btnGrupo.addActionListener(e -> {
-            if (grupos.size() < 5) {
-                String n = JOptionPane.showInputDialog("Nome do Grupo:");
-                if (n != null && !n.trim().isEmpty()) {
-                    grupos.add(new Grupo(n.trim()));
-                } else if (n != null) {
-                    JOptionPane.showMessageDialog(this, "O nome do grupo não pode ser vazio.");
-                }
-            } else JOptionPane.showMessageDialog(this, "Limite de 5 grupos!");
-        });
-
+        btnGrupo.addActionListener(e -> criarGrupo());
         btnEntrar.addActionListener(e -> entrarEmGrupo());
         btnApostar.addActionListener(e -> realizarAposta());
 
         return painel;
     }
 
+    private void criarGrupo() {
+        String nome = JOptionPane.showInputDialog("Nome do Grupo:");
+        if (nome == null) return;
+        try {
+            grupoService.criar(nome);
+            atualizarRankingInterface();
+            JOptionPane.showMessageDialog(this, "Grupo criado!");
+        } catch (RegraDeNegocioException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage());
+        }
+    }
+
     // --- REQUISITO: CADASTRO OBRIGATÓRIO DE HORÁRIO ---
     private void registrarPartida() {
-        if (campeonatos.isEmpty()) return;
+        List<Campeonato> campeonatos = campeonatoService.listarTodos();
+        if (campeonatos.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Crie um campeonato primeiro.");
+            return;
+        }
         Campeonato camp = (Campeonato) JOptionPane.showInputDialog(this, "Selecione o Campeonato", "Partida",
                 JOptionPane.QUESTION_MESSAGE, null, campeonatos.toArray(), campeonatos.get(0));
 
@@ -131,48 +149,41 @@ public class SistemaCompleto extends JFrame {
         Clube c2 = (Clube) JOptionPane.showInputDialog(this, "Time B", "Partida",
                 JOptionPane.QUESTION_MESSAGE, null, camp.getClubes().toArray(), camp.getClubes().get(1));
 
-        if (c1 != null && c1.equals(c2)) {
-            JOptionPane.showMessageDialog(this, "Times não podem ser iguais na mesma partida!");
+        String dataString = JOptionPane.showInputDialog(this, "Horário da Partida (dd/MM/yyyy HH:mm):",
+                LocalDateTime.now().plusDays(1).format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+        if (dataString == null) return;
+
+        LocalDateTime horario;
+        try {
+            horario = LocalDateTime.parse(dataString, DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "ERRO: O horário é obrigatório e deve seguir o formato dd/MM/yyyy HH:mm");
             return;
         }
 
-        String dataString = JOptionPane.showInputDialog(this, "Horário da Partida (dd/MM/yyyy HH:mm):",
-                LocalDateTime.now().plusDays(1).format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
-
         try {
-            DateTimeFormatter parser = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-            LocalDateTime horario = LocalDateTime.parse(dataString, parser);
-
-            Partida p = new Partida(c1, c2, horario);
-            camp.adicionarPartida(p);
+            partidaService.agendar(camp, c1, c2, horario);
             JOptionPane.showMessageDialog(this, "Partida agendada com sucesso!");
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "ERRO: O horário é obrigatório e deve seguir o formato dd/MM/yyyy HH:mm");
+        } catch (RegraDeNegocioException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage());
         }
     }
 
     // --- REQUISITO: APOSTA SOMENTE ATÉ 20 MINUTOS ANTES ---
     private void realizarAposta() {
-        if (grupos.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Nenhum grupo criado.");
-            return;
-        }
         Grupo g = selecionarGrupo();
-        if (g == null || g.getParticipantes().isEmpty()) {
-            if (g != null) JOptionPane.showMessageDialog(this, "Este grupo ainda não tem participantes.");
+        if (g == null) return;
+        if (g.getParticipantes().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Este grupo ainda não tem participantes.");
             return;
         }
 
         Participante part = (Participante) JOptionPane.showInputDialog(this, "Quem está apostando?", "Aposta",
                 JOptionPane.QUESTION_MESSAGE, null, g.getParticipantes().toArray(), g.getParticipantes().get(0));
-        
+
         if (part == null) return;
 
-        List<Partida> todas = new ArrayList<>();
-        for (Campeonato c : campeonatos) todas.addAll(c.getPartidas());
-
-        List<Partida> pendentes = todas.stream().filter(p -> !p.isResultadoRegistrado()).collect(java.util.stream.Collectors.toList());
-
+        List<Partida> pendentes = partidaService.listarPendentes();
         if (pendentes.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Não há partidas pendentes disponíveis para aposta.");
             return;
@@ -180,54 +191,41 @@ public class SistemaCompleto extends JFrame {
 
         Partida pSel = (Partida) JOptionPane.showInputDialog(this, "Selecione a Partida", "Aposta",
                 JOptionPane.QUESTION_MESSAGE, null, pendentes.toArray(), pendentes.get(0));
+        if (pSel == null) return;
 
-        if (pSel != null) {
-            if (!pSel.podeApostar()) {
-                JOptionPane.showMessageDialog(this, "BLOQUEADO: Aposta permitida apenas até 20 minutos antes do início!");
-                return;
-            }
-            try {
-                int gA = Integer.parseInt(JOptionPane.showInputDialog("Gols " + pSel.getTimeA().getNome()));
-                int gB = Integer.parseInt(JOptionPane.showInputDialog("Gols " + pSel.getTimeB().getNome()));
-                part.apostar(new Aposta(pSel, gA, gB));
-                JOptionPane.showMessageDialog(this, "Aposta registrada!");
-            } catch (Exception e) { JOptionPane.showMessageDialog(this, "Dados inválidos."); }
+        try {
+            int gA = Integer.parseInt(JOptionPane.showInputDialog("Gols " + pSel.getTimeA().getNome()));
+            int gB = Integer.parseInt(JOptionPane.showInputDialog("Gols " + pSel.getTimeB().getNome()));
+            apostaService.apostar(part, pSel, gA, gB);
+            JOptionPane.showMessageDialog(this, "Aposta registrada!");
+        } catch (RegraDeNegocioException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage());
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Dados inválidos.");
         }
     }
 
     private void criarCampeonato() {
         String nome = JOptionPane.showInputDialog("Nome do Campeonato:");
-        if (nome == null || nome.trim().isEmpty()) return;
+        if (nome == null) return;
 
+        List<Clube> todosClubes = clubeService.listarTodos();
         JList<Clube> list = new JList<>(todosClubes.toArray(new Clube[0]));
         list.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-        JOptionPane.showMessageDialog(this, new JScrollPane(list), "Selecione os times (Segure CTRL para múltiplos)", JOptionPane.QUESTION_MESSAGE);
+        JOptionPane.showMessageDialog(this, new JScrollPane(list),
+                "Selecione os times (Segure CTRL para múltiplos)", JOptionPane.QUESTION_MESSAGE);
 
-        List<Clube> selecionados = list.getSelectedValuesList();
-
-        if (selecionados.size() < 2) {
-            JOptionPane.showMessageDialog(this, "Selecione ao menos 2 times.");
-            return;
+        try {
+            Campeonato novo = campeonatoService.criar(nome, list.getSelectedValuesList());
+            modelCampeonatos.addElement(novo.getNome());
+            JOptionPane.showMessageDialog(this, "Campeonato criado!");
+        } catch (RegraDeNegocioException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage());
         }
-        if (selecionados.size() > 8) {
-            JOptionPane.showMessageDialog(this, "Limite máximo de 8 times atingido.");
-            return;
-        }
-
-        Campeonato novo = new Campeonato(nome);
-        for (Clube c : selecionados) {
-            novo.adicionarClube(c);
-        }
-        campeonatos.add(novo);
-        modelCampeonatos.addElement(nome);
     }
 
     private void lancarResultado() {
-        List<Partida> todas = new ArrayList<>();
-        for (Campeonato c : campeonatos) todas.addAll(c.getPartidas());
-        
-        List<Partida> pendentes = todas.stream().filter(p -> !p.isResultadoRegistrado()).collect(java.util.stream.Collectors.toList());
-
+        List<Partida> pendentes = partidaService.listarPendentes();
         if (pendentes.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Não há partidas pendentes para registrar resultado.");
             return;
@@ -235,28 +233,27 @@ public class SistemaCompleto extends JFrame {
 
         Partida p = (Partida) JOptionPane.showInputDialog(this, "Selecione a Partida", "Admin",
                 JOptionPane.QUESTION_MESSAGE, null, pendentes.toArray(), pendentes.get(0));
+        if (p == null) return;
 
-        if (p != null) {
-
-            try {
-                int gA = Integer.parseInt(JOptionPane.showInputDialog("Gols " + p.getTimeA().getNome()));
-                int gB = Integer.parseInt(JOptionPane.showInputDialog("Gols " + p.getTimeB().getNome()));
-                admin.registrarResultado(p, gA, gB); // A trava na classe Partida garante a segurança
-                atualizarRankingInterface();
-            } catch (Exception e) {
-                JOptionPane.showMessageDialog(this, "Valores inválidos.");
-            }
+        try {
+            int gA = Integer.parseInt(JOptionPane.showInputDialog("Gols " + p.getTimeA().getNome()));
+            int gB = Integer.parseInt(JOptionPane.showInputDialog("Gols " + p.getTimeB().getNome()));
+            partidaService.registrarResultado(admin, p, gA, gB);
+            atualizarRankingInterface();
+            JOptionPane.showMessageDialog(this, "Resultado registrado!");
+        } catch (RegraDeNegocioException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage());
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Valores inválidos.");
         }
     }
 
     // --- REQUISITO: MOSTRAR CLASSIFICAÇÃO NA INTERFACE ---
     private void atualizarRankingInterface() {
         StringBuilder sb = new StringBuilder();
-        for (Grupo g : grupos) {
+        for (Grupo g : grupoService.listarTodos()) {
             sb.append("--- GRUPO: ").append(g.getNome()).append(" ---\n");
-            List<Participante> parts = new ArrayList<>(g.getParticipantes());
-            parts.sort((p1, p2) -> p2.calcularPontuacao() - p1.calcularPontuacao());
-            for (Participante p : parts) {
+            for (Participante p : grupoService.classificacao(g)) {
                 sb.append(p.getNome()).append(": ").append(p.calcularPontuacao()).append(" pts\n");
             }
             sb.append("\n");
@@ -265,32 +262,33 @@ public class SistemaCompleto extends JFrame {
     }
 
     private void entrarEmGrupo() {
-        if (grupos.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Nenhum grupo criado.");
-            return;
-        }
-
         Grupo g = selecionarGrupo();
-        if (g != null && g.getParticipantes().size() < 5) {
-            String n = JOptionPane.showInputDialog("Seu nome:");
-            if (n != null && !n.trim().isEmpty()) {
-                g.adicionarParticipante(new Participante(n.trim()));
-                atualizarRankingInterface();
-            } else if (n != null) {
-                JOptionPane.showMessageDialog(this, "O nome do participante não pode ser vazio.");
-            }
-        } else if (g != null) {
-            JOptionPane.showMessageDialog(this, "Grupo cheio!");
+        if (g == null) return;
+
+        String n = JOptionPane.showInputDialog("Seu nome:");
+        if (n == null) return;
+
+        try {
+            grupoService.adicionarParticipante(g, n);
+            atualizarRankingInterface();
+            JOptionPane.showMessageDialog(this, "Participante adicionado ao grupo!");
+        } catch (RegraDeNegocioException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage());
         }
     }
 
     private Grupo selecionarGrupo() {
-        if (grupos.isEmpty()) return null;
+        List<Grupo> grupos = grupoService.listarTodos();
+        if (grupos.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Nenhum grupo criado.");
+            return null;
+        }
         return (Grupo) JOptionPane.showInputDialog(this, "Selecione o Grupo", "Grupos",
                 JOptionPane.QUESTION_MESSAGE, null, grupos.toArray(), grupos.get(0));
     }
 
     public static void main(String[] args) {
+        Runtime.getRuntime().addShutdownHook(new Thread(JPAUtil::fechar));
         SwingUtilities.invokeLater(() -> new SistemaCompleto().setVisible(true));
     }
 }
